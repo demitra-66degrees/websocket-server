@@ -55,12 +55,11 @@ async def websocket_endpoint(websocket: WebSocket):
         while True: 
             message = await websocket.receive_text()
             if message.startswith("private:"): 
-                _, private_message = message.split(": ", 1)
-                await asyncio.sleep(1) 
-                await manager.send_message_to_client(client_id, f"Private message from {client_id}: {private_message}")
+                _, target_client_id, private_message = message.split(":", 2)
+                await manager.send_message_to_client(target_client_id, f"Private message from client {client_id}: {private_message}")
+                await manager.send_message_to_client(client_id, f"You sent a private message to client {target_client_id}: {private_message}")
             else: 
-                await asyncio.sleep(1) 
-                await manager.broadcast(f"Public message from {client_id}: {message}")
+                await manager.broadcast(f"Public message from client {client_id}: {message}")
     except WebSocketDisconnect: 
         manager.disconnect(websocket)
         await manager.broadcast(f"Client {client_id} disconnected.")
@@ -69,7 +68,7 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.post("/send-message")
 async def send_message(client_id: Optional[str] = None, message: str = ""):
     if client_id: 
-        await manager.send_message_to_client(client_id, f"Server private message to {client_id}: {message}")
+        await manager.send_message_to_client(client_id, f"Server private message to client {client_id}: {message}")
     else:
         await manager.broadcast(f"Server broadcast message: {message}")
     return {"message": "Message sent"}
