@@ -14,7 +14,8 @@ class ConnectionManager:
         await websocket.accept()
         self.active_connections[client_id] = websocket
         await self.active_connections[client_id].send_text(f"Connected! Your client ID is {client_id}")
-        return client_id 
+        await self.broadcast_except(client_id, f"Client {client_id} connected")
+        return client_id
     
     def disconnect(self, client_id: str):
         if client_id in self.active_connections:
@@ -26,6 +27,14 @@ class ConnectionManager:
                 await connection.send_text(message)
             except RuntimeError:
                 self.disconnect(client_id)
+
+    async def broadcast_except(self, exclude_client_id: str, message: str):
+        for client_id, connection in list(self.active_connections.items()):
+            if client_id != exclude_client_id:
+                try:
+                    await connection.send_text(message)
+                except RuntimeError:
+                    self.disconnect(client_id)
 
     async def send_message_to_client(self, client_id: str, message: str): 
         if client_id in self.active_connections:
@@ -54,7 +63,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 await manager.broadcast(f"Public message from {client_id}: {message}")
     except WebSocketDisconnect: 
         manager.disconnect(websocket)
-        await manager.broadcast("A client disconnected.")
+        await manager.broadcast(f"Client {client_id} disconnected.")
 
 
 @app.post("/send-message")
